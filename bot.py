@@ -2,78 +2,79 @@ import discord
 from discord.ext import commands
 import asyncio
 import random
+import os
 
-# Configurações do bot
-TOKEN = 'SEU_TOKEN_AQUI'  # Substitua pelo token do seu bot
+TOKEN = os.environ.get('TOKEN')
 PREFIX = '+'
 
-# Lista de fontes diferentes para as mensagens
+# Fontes reduzidas (menos caracteres especiais)
 FONTES = [
-    "𝐸𝑡𝑒𝑟𝑛𝑎𝑙 𝑒 𝑉𝑖𝑑𝑎!", "𝑬𝒕𝒆𝒓𝒏𝒂𝒍 𝒆 𝑽𝒊𝒅𝒂!", "𝕰𝖙𝖊𝖗𝖓𝖆𝖑 𝖊 𝖁𝖎𝖉𝖆!", 
-    "🅴🆃🅴🆁🅽🅰🅻 🅴 🆅🅸🅳🅰!", "E̷t̷e̷r̷n̷a̷l̷ ̷é̷ ̷V̷i̷d̷a̷!̷", 
-    "꧁Eternal é Vida!꧂", "☠️ ETERNAL É VIDA! ☠️", "『Eternal é Vida!』",
-    "✺Eternal é Vida!✺", "☣ ETERNAL É VIDA ☣", "♛ Eternal é Vida ♛",
-    "⟁ Eternal é Vida ⟁", "✪ Eternal é Vida ✪", "❂ Eternal é Vida ❂",
-    "⟟ Eternal é Vida ⟟", "◈ Eternal é Vida ◈", "✦ Eternal é Vida ✦",
-    "✧ Eternal é Vida ✧", "⋆ Eternal é Vida ⋆"
+    "Eternal é Vida!", "🔥 Eternal é Vida 🔥", "⭐ Eternal é Vida ⭐",
+    "✨ Eternal é Vida ✨", "💀 Eternal é Vida 💀", "Eternal é Vida!",
+    "ETERNAL É VIDA!", "✦ Eternal é Vida ✦", "♛ Eternal é Vida ♛"
 ]
 
-intents = discord.Intents.all()
+intents = discord.Intents.default()  # Mais leve que Intents.all()
 bot = commands.Bot(command_prefix=PREFIX, intents=intents)
 
 @bot.event
 async def on_ready():
-    print(f'Bot conectado como {bot.user}')
-    print(f'ID do bot: {bot.user.id}')
-    print(f'Servidores: {len(bot.guilds)}')
+    print(f'✅ Bot conectado como {bot.user}')
     await bot.change_presence(activity=discord.Game(name="Eternal é Vida!"))
 
 @bot.command(name='EtnX')
 async def etnx(ctx):
-    """Comando que apaga todos os canais e cria novos"""
+    # Confirmação antes de destruir tudo
+    await ctx.send("⚠️ Isso vai apagar TODOS os canais e criar novos. Confirmar? (digite `confirmar` em 10s)")
+    
+    def check(m):
+        return m.author == ctx.author and m.channel == ctx.channel and m.content.lower() == "confirmar"
     
     try:
-        # Apagar todos os canais existentes
+        await bot.wait_for('message', timeout=10.0, check=check)
+    except asyncio.TimeoutError:
+        await ctx.send("❌ Comando cancelado!")
+        return
+    
+    await ctx.send("🚀 Iniciando... (isso pode levar alguns minutos)")
+    
+    try:
+        # Apagar canais existentes (mais rápido)
         for channel in ctx.guild.channels:
             try:
                 await channel.delete()
-                await asyncio.sleep(0.5)
+                await asyncio.sleep(0.3)  # Delay reduzido mas seguro
             except:
                 continue
-                
-        # Criar 1500 canais de texto
-        for i in range(1500):
+        
+        # Criar canais (quantidade reduzida)
+        total_canais = 200  # Reduzido de 1500 para 200
+        mensagens_por_canal = 30  # Reduzido de 150 para 30
+        
+        for i in range(total_canais):
             try:
-                new_channel = await ctx.guild.create_text_channel(f"eternal-vida-{i+1}")
-                print(f"Canal criado: {new_channel.name} ({i+1}/1500)")
+                canal = await ctx.guild.create_text_channel(f"eternal-{i+1}")
                 
-                # Enviar 150 mensagens no canal
-                for _ in range(150):
-                    fonte_aleatoria = random.choice(FONTES)
-                    await new_channel.send(f"**{fonte_aleatoria}**")
-                    await asyncio.sleep(0.1)
-                    
-            except discord.errors.HTTPException as e:
-                print(f"Erro ao criar canal {i+1}: {e}")
-                break
-            except Exception as e:
-                print(f"Erro inesperado: {e}")
+                # Envia menos mensagens
+                for _ in range(mensagens_por_canal):
+                    fonte = random.choice(FONTES)
+                    await canal.send(f"**{fonte}**")
+                    await asyncio.sleep(0.2)  # Delay maior pra evitar rate limit
+                
+                # Progresso
+                if (i + 1) % 10 == 0:
+                    await ctx.send(f"📊 Progresso: {i+1}/{total_canais}")
+                    await asyncio.sleep(1)
+                
+            except discord.errors.HTTPException:
+                await ctx.send(f"⚠️ Rate limit atingido! Pausando 5s...")
+                await asyncio.sleep(5)
                 continue
-                
-            # Pequena pausa para não sobrecarregar
-            if i % 10 == 0:
-                await asyncio.sleep(2)
-                
-        print("✅ Operação concluída!")
+        
+        await ctx.send(f"✅ Concluído! {total_canais} canais criados com {mensagens_por_canal} mensagens cada.")
         
     except Exception as e:
-        print(f"Erro geral: {e}")
+        await ctx.send(f"❌ Erro: {e}")
 
-# Executar o bot
 if __name__ == "__main__":
-    try:
-        bot.run(TOKEN)
-    except discord.errors.LoginFailure:
-        print("❌ Token inválido! Verifique o token do seu bot.")
-    except Exception as e:
-        print(f"❌ Erro ao iniciar o bot: {e}")
+    bot.run(TOKEN)
